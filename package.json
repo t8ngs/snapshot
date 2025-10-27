@@ -1,0 +1,132 @@
+{
+  "name": "@t8ngs/snapshot",
+  "description": "Snapshot testing plugin for T8ngs",
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=18.16.0"
+  },
+  "type": "module",
+  "files": [
+    "dist",
+    "!dist/bin",
+    "!dist/tests"
+  ],
+  "exports": {
+    ".": "./dist/index.js",
+    "./types": "./dist/src/types.js"
+  },
+  "scripts": {
+    "pretest": "npm run lint",
+    "test": "c8 npm run quick:test",
+    "clean": "del-cli dist",
+    "precompile": "npm run lint && npm run clean",
+    "compile": "tsup-node && tsc --emitDeclarationOnly --declaration",
+    "build": "npm run compile",
+    "version": "npm run build",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build",
+    "lint": "eslint",
+    "format": "prettier --write .",
+    "quick:test": "node --import=ts-node-maintained/register/esm bin/test.ts",
+    "commitlint": "commitlint --edit",
+    "prepare": "husky install",
+    "commit": "cz"
+  },
+  "devDependencies": {
+    "@arapucajs/eslint-config": "^1.1.2",
+    "@arapucajs/prettier": "^1.1.1",
+    "@arapucajs/tsconfig": "^1.0.0",
+    "@commitlint/cli": "^20.1.0",
+    "@commitlint/config-conventional": "^20.0.0",
+    "@swc/core": "^1.13.5",
+    "@t8ngs/assert": "^1.0.0",
+    "@t8ngs/expect": "^1.1.0",
+    "@t8ngs/fs": "^1.0.0",
+    "@t8ngs/runner": "^1.0.1",
+    "@types/dedent": "^0.7.2",
+    "@types/node": "^24.9.1",
+    "@types/stack-utils": "^2.0.3",
+    "c8": "^10.1.3",
+    "commitizen": "^4.3.1",
+    "cz-conventional-changelog": "^3.3.0",
+    "del-cli": "^7.0.0",
+    "eslint": "^9.38.0",
+    "expect": "^30.2.0",
+    "husky": "^9.1.7",
+    "prettier": "^3.6.2",
+    "ts-node-maintained": "^10.9.6",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "@t8ngs/assert": "^1.0.0 || ^3.0.0 || ^4.0.0",
+    "@t8ngs/expect": "^1.0.0",
+    "@t8ngs/runner": "^1.0.0 || ^4.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@t8ngs/assert": {
+      "optional": true
+    },
+    "@t8ngs/expect": {
+      "optional": true
+    }
+  },
+  "homepage": "https://github.com/t8ngs/snapshot#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/t8ngs/snapshot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/t8ngs/snapshot/issues"
+  },
+  "keywords": [
+    "@t8ngs",
+    "snapshot",
+    "snapshot-testing"
+  ],
+  "author": "JefteCosta <jefteamorim@gmail.com>",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "tsup": {
+    "entry": [
+      "./index.ts",
+      "./src/types.ts"
+    ],
+    "outDir": "./dist",
+    "clean": true,
+    "format": "esm",
+    "dts": false,
+    "sourcemap": false,
+    "target": "esnext"
+  },
+  "c8": {
+    "reporter": [
+      "text",
+      "html"
+    ],
+    "exclude": [
+      "tests/**"
+    ]
+  },
+  "prettier": "@arapucajs/prettier",
+  "dependencies": {
+    "dedent": "^1.7.0",
+    "jest-message-util": "^30.2.0",
+    "magic-string": "^0.30.21",
+    "pretty-format": "^30.2.0",
+    "stack-utils": "^2.0.6"
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
+  },
+  "husky": {
+    "hooks": {
+      "prepare-commit-msg": "exec < /dev/tty && npx cz --hook || true"
+    }
+  }
+}

@@ -1,0 +1,96 @@
+/*
+ * @t8ngs/snapshot
+ *
+ * (c) T8ngs
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+import dedent from 'dedent'
+import type { Test } from '@t8ngs/runner/core'
+import { readFile, writeFile } from 'node:fs/promises'
+import { Frame, getStackTraceLines } from 'jest-message-util'
+
+import type { InlineSnapshotData } from '../types.js'
+import { InlineSnapshotInserter } from './inline_snapshot_inserter.js'
+import { getTopFrame, prepareExpected, serializeSnapshotValue } from '../utils.js'
+
+export class InlineSnaphotter {
+  #snapshotsToSave: InlineSnapshotData[] = []
+
+  /**
+   * Get all the files that have snapshots to save
+   */
+  #getFilesToSave() {
+    return new Set(this.#snapshotsToSave.map(({ filePath }) => filePath))
+  }
+
+  /**
+   * Update a snapshot by saving the new serialized value
+   * in memory.
+   *
+   * Will be persisted to disk when the tests are done.
+   */
+  updateSnapshot(test: Test, value: string, matcher: 'expect' | 'assert') {
+    const error = new Error()
+    const lines = getStackTraceLines(error.stack ?? '')
+
+    const frame = getTopFrame(lines)
+    if (!frame || !frame.column || !frame.line) {
+      throw new Error('Could not find top frame')
+    }
+
+    frame.column -= 1
+
+    this.#snapshotsToSave.push({
+      frame: frame as Required<Frame>,
+      filePath: test.options.meta.fileName,
+      value: serializeSnapshotValue(value),
+      matcher,
+    })
+  }
+
+  /**
+   * Check if the received value matches the expected snapshot
+   */
+  compareSnapshot(test: Test, received: any, expected: string) {
+    return this.getSnapshotTestData(test, received, expected).pass
+  }
+
+  /**
+   * Returns the data needed for a future assertion
+   */
+  getSnapshotTestData(test: Test, received: any, expected: string) {
+    const serializedExpected = prepareExpected(dedent(expected))
+    const serializedReceived = serializeSnapshotValue(received)
+
+    return {
+      snapshotName: test.title,
+      expected: serializedExpected,
+      received: serializedReceived,
+      pass: serializedExpected === serializedReceived,
+      inline: true,
+    }
+  }
+
+  /**
+   * Saves all the inline snapshots that were updated during the run.
+   * Reads the file contents, updates inline snapshots, then writes the
+   * changes back to the file
+   *
+   * This method should be called after all tests have finished running.
+   */
+  async saveSnapshots() {
+    const files = this.#getFilesToSave()
+
+    for (const filePath of files) {
+      const snaps = this.#snapshotsToSave.filter((snapshot) => snapshot.filePath === filePath)
+      const code = await readFile(filePath, 'utf-8')
+
+      const { newCode, hasChanged } = InlineSnapshotInserter.insert(code, snaps)
+
+      if (hasChanged) await writeFile(filePath, newCode)
+    }
+  }
+}

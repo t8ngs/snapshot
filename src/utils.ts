@@ -1,0 +1,118 @@
+/*
+ * @t8ngs/snapshot
+ *
+ * (c) T8ngs
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+import { sep } from 'node:path'
+import StackUtils from 'stack-utils'
+import { Frame } from 'jest-message-util'
+import { createRequire } from 'node:module'
+import { PrettyFormatOptions } from 'pretty-format'
+import { format as prettyFormat } from 'pretty-format'
+
+/**
+ * stack utils tries to create pretty stack by making paths relative,
+ * so we provide it a fake cwd to avoid that
+ */
+const stackUtils = new StackUtils({ cwd: 'something which does not exist' })
+
+/**
+ * Prepares the expected string by removing unnecessary indentation and whitespace.
+ */
+export function prepareExpected(expected?: string) {
+  function findStartIndent() {
+    /**
+     * Attempts to find indentation for objects.
+     * Matches the ending tag of the object.
+     */
+    const matchObject = /^( +)}\s+$/m.exec(expected || '')
+    const objectIndent = matchObject?.[1]?.length
+
+    if (objectIndent) return objectIndent
+
+    /**
+     * Attempts to find indentation for texts.
+     * Matches the quote of first line.
+     */
+    const matchText = /^\n( +)"/.exec(expected || '')
+    return matchText?.[1]?.length || 0
+  }
+
+  const startIndent = findStartIndent()
+  let expectedTrimmed = expected?.trim()
+
+  if (startIndent) {
+    expectedTrimmed = expectedTrimmed
+      ?.replace(new RegExp(`^${' '.repeat(startIndent)}`, 'gm'), '')
+      .replace(/ +}$/, '}')
+  }
+
+  return expectedTrimmed
+}
+
+/**
+ * Escapes backticks in the string
+ */
+export function escapeBackticks(str: string) {
+  return str.replace(/`|\\|\${/g, '\\$&')
+}
+
+/**
+ * Wraps the string in backticks
+ */
+export function backticked(str: string) {
+  return `\`${escapeBackticks(str)}\``
+}
+
+/**
+ * Serialize the given snapshot value to a string using pretty-format
+ */
+export function serializeSnapshotValue(value: any, options: PrettyFormatOptions = {}) {
+  return prettyFormat(value, {
+    printBasicPrototype: false,
+    printFunctionName: false,
+    ...options,
+  })
+}
+
+/**
+ * Returns the top frame from the stack trace,
+ * ignoring the frames from node_modules and expect-snapshot
+ */
+const IGNORED_FRAMES = [
+  `${sep}node_modules${sep}`,
+  `${sep}snapshot${sep}src`,
+  `${sep}snapshot${sep}index.ts`,
+  `${sep}snapshot${sep}index.js`,
+  `${sep}snapshot${sep}build`,
+]
+
+export function getTopFrame(lines: string[]) {
+  for (const line of lines) {
+    if (IGNORED_FRAMES.some((frame) => line.includes(frame))) continue
+
+    const parsedFrame = stackUtils.parseLine(line.trim())
+    if (parsedFrame && parsedFrame.file) {
+      return parsedFrame as Frame
+    }
+  }
+
+  return null
+}
+
+/**
+ * Check if a given module is installed
+ */
+export function isModuleInstalled(moduleName: string) {
+  const require = createRequire(import.meta.url)
+  try {
+    require.resolve(moduleName)
+    return true
+  } catch (error) {
+    return false
+  }
+}
