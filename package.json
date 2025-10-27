@@ -29,7 +29,7 @@
     "format": "prettier --write .",
     "quick:test": "node --import=ts-node-maintained/register/esm bin/test.ts",
     "commitlint": "commitlint --edit",
-    "prepare": "husky install",
+    "prepare": "husky",
     "commit": "cz"
   },
   "devDependencies": {
